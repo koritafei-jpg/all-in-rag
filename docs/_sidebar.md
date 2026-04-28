@@ -43,4 +43,7 @@
         - [知识图谱与 Neo4j 安装](chapter11/01_knowledge_graph.md)
         - [Neo4j 基本使用](chapter11/02_neo4j.md)
 
+    - 第十二章 AI Memory 论文调研
+        - [AI Memory 最新论文调研报告](chapter12/01_ai_memory_survey.md)
+
     
