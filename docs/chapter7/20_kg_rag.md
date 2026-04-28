@@ -6,10 +6,6 @@
 
 ## 一、从传统RAG到知识图谱增强RAG的演进
 
-<div align="center">
-   <img src="./images/7_1_1.svg" alt="GraphRAG" width="800">
-</div>
-
 ### 1.1 传统RAG框架的固有局限性
 
 尽管传统 RAG 通过"检索-生成"两阶段流程在一定程度上解决了LLM的知识更新问题，但其基于非结构化文本向量检索的核心机制仍存在几个关键局限。
@@ -191,23 +187,20 @@ GraphRAG 的评估体系是多维度的，主要涵盖三个方面。
 将GraphRAG框架从实验室推向生产环境，面临着一系列独特的工程和技术挑战。
 
 - **知识图谱的构建与动态维护**：高质量知识图谱的构建本身就是一项耗时耗力的知识工程。在生产环境中，知识需要持续保持最新状态，如何设计高效、准确、低成本的动态更新机制是核心难点。
-
 - **系统性能与可扩展性**：随着知识库规模和用户查询量的增长，系统的响应延迟、吞吐量和资源消耗成为主要瓶颈。生产部署需要应对向量化速度慢、内存溢出、API 失败等具体问题。
-
 - **安全与隐私保护**：RAG 系统引入外部数据源，带来了新的安全风险，包括数据隐私泄露、模型被注入恶意数据（模型中毒）、以及针对检索模块的攻击等。
-
 - **成本控制**：大规模部署 GraphRAG 系统需要大量的计算和存储资源，如何优化系统架构以降低运营成本是一个重要的商业考量。
 
 ## 参考文献
 
-[^1]: [Edge et al. (2024). *From Local to Global: A Graph RAG Approach to Query-Focused Summarization*](https://arxiv.org/abs/2404.16130)
+[^1]: [Edge et al. (2024). *From Local to Global: A Graph RAG Approach to Query-Focused Summarization](https://arxiv.org/abs/2404.16130)*
 
 [^2]: [Microsoft GraphRAG Documentation](https://microsoft.github.io/graphrag/)
 
-[^3]: [Guo et al. (2024). *LightRAG: Simple and Fast Retrieval-Augmented Generation*](https://arxiv.org/abs/2410.05779)
+[^3]: [Guo et al. (2024). *LightRAG: Simple and Fast Retrieval-Augmented Generation](https://arxiv.org/abs/2410.05779)*
 
 [^4]: [HKUDS LightRAG Repository](https://github.com/HKUDS/LightRAG)
 
-[^5]: [Zhang et al. (2025). *FRAG: A Flexible Modular Framework for Retrieval-Augmented Generation based on Knowledge Graphs*](https://arxiv.org/abs/2501.09957)
+[^5]: [Zhang et al. (2025). *FRAG: A Flexible Modular Framework for Retrieval-Augmented Generation based on Knowledge Graphs](https://arxiv.org/abs/2501.09957)*
 
-[^6]: [Chen et al. (2025). *GraphIRAG: A Knowledge Graph-Based Iterative Retrieval-Augmented Generation Framework for Temporal Reasoning*](https://arxiv.org/abs/2503.14234)
+[^6]: [Chen et al. (2025). *GraphIRAG: A Knowledge Graph-Based Iterative Retrieval-Augmented Generation Framework for Temporal Reasoning](https://arxiv.org/abs/2503.14234)*
