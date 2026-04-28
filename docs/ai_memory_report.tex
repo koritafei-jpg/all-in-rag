@@ -1,0 +1,366 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[UTF8]{ctex}
+\usepackage{geometry}
+\usepackage{setspace}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{float}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{amsmath,amssymb}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric}
+\geometry{margin=1in}
+\setstretch{1.25}
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  citecolor=blue,
+  urlcolor=blue
+}
+
+\title{面向大模型智能体的长期记忆系统：\\
+开源框架技术架构、实证结果与未来方向综述（2023--2026）}
+\author{AI Memory 调研组}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+随着 LLM Agent 从单轮问答走向持续交互与任务执行，记忆系统已成为核心基础设施。本文系统调研近期具有代表性的开源 AI Memory 框架：MemGPT/Letta、Mem0、Zep/Graphiti、A-MEM、LightMem。针对每个框架，本文给出论文级技术架构解析、关键实验与成功经验总结，并提供完整的“记忆输入-生成-检索”实例。本文进一步归纳当前主流路线：分层记忆、记忆中间层、时间知识图记忆、Agentic 动态记忆与轻量高效记忆。最后，围绕统一记忆策略学习、时间一致性、可验证记忆治理和成本-效果 Pareto 优化等方向，给出未来研究展望。结论表明，AI Memory 正从被动检索增强走向主动记忆管理，从静态文本块走向时间感知与结构化融合记忆。
+\end{abstract}
+
+\noindent\textbf{关键词：}LLM Agent；Long-term Memory；Agentic Memory；Temporal Knowledge Graph；Memory-Augmented Generation
+
+\section{引言}
+传统 LLM 受限于上下文窗口，难以支持跨会话个性化、长期任务分解与持续演化知识。随着智能体在工程系统中的部署，记忆能力从“可选增强”演化为“系统刚需”：一方面要记住用户偏好、任务状态与历史决策；另一方面要在时间变化与事实冲突时进行更新、失效与追溯。
+
+近期开源生态形成了多条技术路线：OS 风格分层记忆（MemGPT）\cite{memgpt2024}、生产化记忆中间层（Mem0）\cite{mem02025}、时间知识图记忆（Zep/Graphiti）\cite{zep2025,graphiti2024}、Agentic 动态记忆网络（A-MEM）\cite{amem2025} 与轻量高效记忆系统（LightMem）\cite{lightmem2025}。本文目标是形成可直接用于学术汇报与工程决策的结构化综述。
+
+\section{调研方法与对象}
+\subsection{入选标准}
+\begin{enumerate}[leftmargin=2em]
+  \item 开源可用：具备 GitHub 代码与文档；
+  \item 学术可引：具备论文或技术报告；
+  \item 记忆闭环：支持写入、更新、检索；
+  \item 实证可比：具备任务评测或效率指标。
+\end{enumerate}
+
+\subsection{入选框架}
+\begin{itemize}[leftmargin=2em]
+  \item F1: MemGPT / Letta \cite{memgpt2024,letta}
+  \item F2: Mem0 \cite{mem02025,mem0repo}
+  \item F3: Zep / Graphiti \cite{zep2025,graphiti2024}
+  \item F4: A-MEM \cite{amem2025}
+  \item F5: LightMem \cite{lightmem2025,lightmemrepo}
+\end{itemize}
+
+\section{框架逐一分析}
+
+\subsection{MemGPT / Letta：分层记忆与 Agent 自主内存操作}
+\subsubsection{技术架构}
+MemGPT 将上下文窗口视作有限主存，将外部存储视作扩展记忆，通过函数调用实现“写入、归档、召回、替换”\cite{memgpt2024}。
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  node distance=8mm and 12mm,
+  box/.style={draw, rounded corners, align=center, minimum width=2.8cm, minimum height=0.9cm},
+  arr/.style={-Latex, thick}
+]
+\node[box] (u) {用户输入};
+\node[box, right=of u] (agent) {LLM Agent Core};
+\node[box, below left=of agent] (core) {Core Memory\\(热层)};
+\node[box, below=of agent] (recall) {Recall Memory\\(会话回忆)};
+\node[box, below right=of agent] (arch) {Archival Memory\\(长期存储)};
+\node[box, right=of agent] (out) {响应输出};
+\draw[arr] (u) -- (agent);
+\draw[arr] (agent) -- (out);
+\draw[arr] (agent) -- (core);
+\draw[arr] (agent) -- (recall);
+\draw[arr] (agent) -- (arch);
+\draw[arr] (core) -- (agent);
+\draw[arr] (recall) -- (agent);
+\draw[arr] (arch) -- (agent);
+\end{tikzpicture}
+\caption{MemGPT/Letta 分层记忆架构示意图}
+\label{fig:memgpt}
+\end{figure}
+
+\subsubsection{成功经验}
+\begin{itemize}[leftmargin=2em]
+  \item 将“是否记忆、记什么、何时召回”交给 Agent，优于纯被动 RAG 拼接；
+  \item 在长文档分析与多会话连续交互场景中显著改善上下文受限问题\cite{memgpt2024}。
+\end{itemize}
+
+\subsubsection{完整示例：输入-生成-检索}
+\textbf{输入：}
+\begin{itemize}[leftmargin=2em]
+  \item t1: “我对花生过敏，早餐偏好燕麦。”
+  \item t2: “下周给我制定三天早餐计划。”
+\end{itemize}
+
+\textbf{记忆生成（写入）：}
+\begin{verbatim}
+{
+  "user_id": "u_001",
+  "memory_write": [
+    {"type": "profile", "key": "allergy", "value": "peanut"},
+    {"type": "preference", "key": "breakfast", "value": "oatmeal"}
+  ]
+}
+\end{verbatim}
+
+\textbf{检索：}
+\begin{verbatim}
+{
+  "query": "三天早餐计划约束",
+  "retrieved": ["allergy=peanut", "preference=oatmeal"]
+}
+\end{verbatim}
+
+\textbf{输出：}三天均生成无花生、以燕麦为主的早餐方案。
+
+\subsection{Mem0：生产化可扩展记忆中间层}
+\subsubsection{技术架构}
+Mem0 将记忆能力抽象为可独立部署的 memory layer，核心流程为抽取、合并、存储、检索、注入生成\cite{mem02025,mem0repo}。
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  node distance=7mm and 8mm,
+  box/.style={draw, rounded corners, align=center, minimum width=2.5cm, minimum height=0.9cm},
+  arr/.style={-Latex, thick}
+]
+\node[box] (in) {对话输入};
+\node[box, right=of in] (ex) {Memory\\Extractor};
+\node[box, right=of ex] (co) {Consolidation\\冲突消解};
+\node[box, right=of co] (store) {Memory Store\\(Vector/DB)};
+\node[box, below=of store] (ret) {Retrieval};
+\node[box, left=of ret] (gen) {LLM 生成};
+\draw[arr] (in) -- (ex);
+\draw[arr] (ex) -- (co);
+\draw[arr] (co) -- (store);
+\draw[arr] (store) -- (ret);
+\draw[arr] (ret) -- (gen);
+\end{tikzpicture}
+\caption{Mem0 记忆中间层架构示意图}
+\label{fig:mem0}
+\end{figure}
+
+\subsubsection{成功经验}
+\begin{itemize}[leftmargin=2em]
+  \item 以平台化接口统一记忆读写，利于业务集成；
+  \item 强调生产可用性与规模化部署能力\cite{mem02025}。
+\end{itemize}
+
+\subsubsection{完整示例：输入-生成-检索}
+\textbf{输入：}“我叫 John，是后端工程师，主要用 Go 和 PostgreSQL。”\\
+\textbf{记忆生成：}
+\begin{verbatim}
+{"user_id":"john","memories":["name=John","role=backend engineer",
+ "tech=Go","tech=PostgreSQL"]}
+\end{verbatim}
+\textbf{检索请求：}“给我数据库性能优化学习路径。”\\
+\textbf{检索注入：}role/tech 相关事实。\\
+\textbf{输出：}面向 Go + PostgreSQL 的索引、执行计划、连接池优化路线。
+
+\subsection{Zep / Graphiti：时间知识图谱记忆}
+\subsubsection{技术架构}
+Graphiti 构建时间感知知识图，支持事实有效期（valid\_at/invalid\_at）、来源追踪（provenance）与混合检索（语义 + BM25 + 图遍历）\cite{zep2025,graphiti2024}。
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  node distance=7mm and 10mm,
+  box/.style={draw, rounded corners, align=center, minimum width=2.8cm, minimum height=0.9cm},
+  arr/.style={-Latex, thick}
+]
+\node[box] (src) {多源输入\\(聊天/业务数据/事件)};
+\node[box, right=of src] (ing) {增量摄取};
+\node[box, right=of ing] (ext) {实体关系+时间抽取};
+\node[box, below=of ext] (kg) {Temporal KG};
+\node[box, left=of kg] (inv) {失效与历史保留};
+\node[box, right=of kg] (hy) {Hybrid Retrieval};
+\node[box, right=of hy] (llm) {上下文组装+生成};
+\draw[arr] (src) -- (ing);
+\draw[arr] (ing) -- (ext);
+\draw[arr] (ext) -- (kg);
+\draw[arr] (kg) -- (inv);
+\draw[arr] (kg) -- (hy);
+\draw[arr] (hy) -- (llm);
+\end{tikzpicture}
+\caption{Zep/Graphiti 时间图记忆架构示意图}
+\label{fig:zep}
+\end{figure}
+
+\subsubsection{成功经验}
+\begin{itemize}[leftmargin=2em]
+  \item 支持“当前事实”和“历史事实”并存，适合企业动态数据；
+  \item 论文报告在 DMR 与 LongMemEval 上具备竞争性结果\cite{zep2025}。
+\end{itemize}
+
+\subsubsection{完整示例：输入-生成-检索}
+\textbf{输入事件：}
+\begin{itemize}[leftmargin=2em]
+  \item “Alice 在 2025-01 是 PM。”
+  \item “Alice 在 2025-06 晋升为 Director。”
+\end{itemize}
+
+\textbf{记忆生成：}
+\begin{verbatim}
+[
+ {"edge":"Alice-role-PM","valid_at":"2025-01-01","invalid_at":"2025-06-01"},
+ {"edge":"Alice-role-Director","valid_at":"2025-06-01","invalid_at":null}
+]
+\end{verbatim}
+
+\textbf{检索：}
+\begin{itemize}[leftmargin=2em]
+  \item 当前查询：Director
+  \item 2025-03 点查：PM
+\end{itemize}
+
+\subsection{A-MEM：Agentic 动态索引与记忆演化}
+\subsubsection{技术架构}
+A-MEM 采用 Zettelkasten 启发的记忆组织方式：新记忆生成结构化笔记并链接历史记忆，同时支持旧记忆语义演化\cite{amem2025}。
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  node distance=7mm and 10mm,
+  box/.style={draw, rounded corners, align=center, minimum width=2.7cm, minimum height=0.9cm},
+  arr/.style={-Latex, thick}
+]
+\node[box] (in) {新交互};
+\node[box, right=of in] (note) {Structured Note\\(上下文/标签/关键词)};
+\node[box, right=of note] (link) {动态链接};
+\node[box, below=of link] (net) {Memory Network};
+\node[box, left=of net] (evo) {Memory Evolution\\(更新旧记忆)};
+\node[box, right=of net] (ret) {Graph-aware Retrieval};
+\node[box, right=of ret] (out) {生成输出};
+\draw[arr] (in) -- (note);
+\draw[arr] (note) -- (link);
+\draw[arr] (link) -- (net);
+\draw[arr] (net) -- (evo);
+\draw[arr] (net) -- (ret);
+\draw[arr] (ret) -- (out);
+\end{tikzpicture}
+\caption{A-MEM 动态记忆网络架构示意图}
+\label{fig:amem}
+\end{figure}
+
+\subsubsection{成功经验}
+\begin{itemize}[leftmargin=2em]
+  \item 解决“只追加不演化”的记忆老化问题；
+  \item 论文报告在多基础模型上优于若干 SOTA 基线\cite{amem2025}。
+\end{itemize}
+
+\subsubsection{完整示例：输入-生成-检索}
+\textbf{输入：}
+\begin{itemize}[leftmargin=2em]
+  \item t1: “讨厌红眼航班”
+  \item t2: “预算敏感，优先低价”
+  \item t3: “若便宜 30\% 以上可接受红眼”
+\end{itemize}
+
+\textbf{记忆演化：}
+\begin{verbatim}
+{
+  "update":"avoid_red_eye_unless_price_gap>=30%"
+}
+\end{verbatim}
+
+\textbf{检索与输出：}当价差达到 34\% 时，系统可解释性推荐红眼航班并给出约束依据。
+
+\subsection{LightMem：轻量高效三阶段记忆}
+\subsubsection{技术架构}
+LightMem 基于“感觉记忆-短时记忆-长时记忆”三阶段，在线快速过滤与主题归纳，离线 sleep-time 做深度整合\cite{lightmem2025,lightmemrepo}。
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  node distance=7mm and 10mm,
+  box/.style={draw, rounded corners, align=center, minimum width=2.8cm, minimum height=0.9cm},
+  arr/.style={-Latex, thick}
+]
+\node[box] (in) {交互流};
+\node[box, right=of in] (s1) {Sensory\\过滤压缩};
+\node[box, right=of s1] (s2) {Short-term\\主题汇总};
+\node[box, right=of s2] (ltm) {Long-term\\Memory};
+\node[box, below=of ltm] (sleep) {Sleep-time\\Offline Consolidation};
+\node[box, below=of s2] (ret) {Online Retrieval};
+\node[box, left=of ret] (gen) {LLM 生成};
+\draw[arr] (in) -- (s1);
+\draw[arr] (s1) -- (s2);
+\draw[arr] (s2) -- (ltm);
+\draw[arr] (ltm) -- (sleep);
+\draw[arr] (s2) -- (ret);
+\draw[arr] (ltm) -- (ret);
+\draw[arr] (ret) -- (gen);
+\end{tikzpicture}
+\caption{LightMem 三阶段轻量记忆架构示意图}
+\label{fig:lightmem}
+\end{figure}
+
+\subsubsection{成功经验}
+\begin{itemize}[leftmargin=2em]
+  \item 在准确率与成本之间取得较好平衡；
+  \item 论文报告 token/API 调用显著下降，体现系统工程优化价值\cite{lightmem2025}。
+\end{itemize}
+
+\subsubsection{完整示例：输入-生成-检索}
+\textbf{输入：}包含大量寒暄噪声的长对话日志。\\
+\textbf{记忆生成：}过滤噪声后保留主题约束（如运动频次、旧伤、训练偏好）。\\
+\textbf{检索：}
+\begin{verbatim}
+{
+  "query":"下月健身计划",
+  "retrieved":["每周3次","膝盖旧伤","偏好低冲击训练"]
+}
+\end{verbatim}
+\textbf{输出：}低冲击、分阶段的可执行计划。
+
+\section{跨框架对比与成功模式}
+\subsection{路线对比}
+\begin{longtable}{p{2.6cm}p{4.8cm}p{6.2cm}}
+\toprule
+框架 & 核心特征 & 主要优势 \\
+\midrule
+MemGPT/Letta & 分层记忆 + Agent 自主读写 & 长上下文突破、记忆主动管理 \\
+Mem0 & 记忆中间层（平台化 API） & 易工程集成、生产可用 \\
+Zep/Graphiti & 时间知识图 + 混合检索 & 时间一致性、关系推理、可追溯 \\
+A-MEM & 动态链接 + 记忆演化 & 自组织知识网络、持续修正 \\
+LightMem & 三阶段轻量机制 + 离线整合 & 成本/时延/质量平衡 \\
+\bottomrule
+\end{longtable}
+
+\subsection{可复用成功经验}
+\begin{enumerate}[leftmargin=2em]
+  \item 记忆系统必须支持更新/失效，而非只追加；
+  \item 时间维度建模是企业级 Agent 的关键能力；
+  \item 主动记忆操作优于被动上下文拼接；
+  \item 检索应采用向量、关键词、结构关系的融合；
+  \item 成本与时延治理应内建于记忆架构。
+\end{enumerate}
+
+\section{未来方向}
+\begin{enumerate}[leftmargin=2em]
+  \item \textbf{统一记忆策略学习}：从规则走向可训练策略（读/写/更新/遗忘）。
+  \item \textbf{可验证记忆治理}：来源、时间戳、置信度、可撤销机制。
+  \item \textbf{多智能体共享记忆协议}：权限边界、冲突合并、审计追踪。
+  \item \textbf{隐私与安全}：PII 最小化、分层加密、合规删除。
+  \item \textbf{评测升级}：长期一致性、时间一致性、成本-质量联合指标。
+  \item \textbf{工作记忆与长期记忆统一调度}：围绕 token budget 的记忆编排器。
+\end{enumerate}
+
+\section{结论}
+AI Memory 已从“附加能力”升级为 Agent 系统的“控制平面”。开源框架整体趋势为：从被动检索增强走向主动记忆管理，从静态文本存储走向时间感知结构化记忆，从单点效果优化走向质量、时延、成本的系统级联合优化。该趋势将持续推动可长期运行、可解释、可治理的智能体应用落地。
+
+\bibliographystyle{plain}
+\bibliography{references}
+
+\end{document}
