@@ -60,22 +60,22 @@ flowchart LR
     RT --> ANS[组装上下文 → LLM 回答]
 ```
 
+
+
 **模块级技术架构**：
 
 1. **三级存储**：
-   - **L0 Raw Buffer**：未消化的原始对话流；作为短期工作记忆；
-   - **L1 Active Wiki**：用户主动维护、由 LLM 持续编译的互链 Markdown 知识库（直接借鉴 Karpathy LLM Wiki 模式）；
-   - **L2 Cold Memory**：核心解释（被中心性保护，不可被单条新事实直接覆盖）。
-
+  - **L0 Raw Buffer**：未消化的原始对话流；作为短期工作记忆；
+  - **L1 Active Wiki**：用户主动维护、由 LLM 持续编译的互链 Markdown 知识库（直接借鉴 Karpathy LLM Wiki 模式）；
+  - **L2 Cold Memory**：核心解释（被中心性保护，不可被单条新事实直接覆盖）。
 2. **五大代谢算子**：
-   - **TRIAGE**：基于 (重要性 r、与现有节点冲突度 c、可信度 p) 三维评分决定写入层级；
-   - **DECAY**：对每条记忆 m 计算 `w(m) = w₀·exp(-λ·age) + β·access_count`，长期未被命中的内容会自然衰减；
-   - **CONTEXTUALIZE**：为新事实生成深度匹配（与 L1 的同主题节点对齐、压缩、链接），不产生孤立节点；
-   - **CONSOLIDATE**：周期性把 L1 中"压力积累达到阈值"的候选解释批量提升到 L2；同时保留少数派假设；
-   - **AUDIT**：以 LLM-as-Judge 巡检 L2 内的逻辑闭包，标记自相矛盾节点并触发回滚。
-
+  - **TRIAGE**：基于 (重要性 r、与现有节点冲突度 c、可信度 p) 三维评分决定写入层级；
+  - **DECAY**：对每条记忆 m 计算 `w(m) = w₀·exp(-λ·age) + β·access_count`，长期未被命中的内容会自然衰减；
+  - **CONTEXTUALIZE**：为新事实生成深度匹配（与 L1 的同主题节点对齐、压缩、链接），不产生孤立节点；
+  - **CONSOLIDATE**：周期性把 L1 中"压力积累达到阈值"的候选解释批量提升到 L2；同时保留少数派假设；
+  - **AUDIT**：以 LLM-as-Judge 巡检 L2 内的逻辑闭包，标记自相矛盾节点并触发回滚。
 3. **关键不变量**：
-   - "**累积矛盾证据必须有结构性路径升级中心保护的主导解释**"——这是该范式提出的最锐利预测，也是现有 benchmark 尚未覆盖的能力。
+  - "**累积矛盾证据必须有结构性路径升级中心保护的主导解释**"——这是该范式提出的最锐利预测，也是现有 benchmark 尚未覆盖的能力。
 
 ### 2.2 代理原生研究工件（Agent-Native Research Artifacts, Ara）
 
@@ -119,15 +119,17 @@ flowchart TB
     NEXT[下一代 Agent] -. 直接继承 .-> ARTIFACT
 ```
 
+
+
 **模块级技术架构**：
 
 1. **OR-Canvas / 任务规约**：人类研究者与 AI 共享的"项目说明书"，包含目标、评估协议、初始 baseline。
 2. **Lead Agent 三角色协作**：Idea Agent（提假设）→ Experiment Agent（写代码、跑实验、捕获 stderr）→ Reflection Agent（汇总成功因素、失败模式与未解决问题）。
 3. **Ara 四层结构**：
-   - **L1 科学逻辑层**：决策树、超参数选择理由、反事实分析；
-   - **L2 可执行代码层**：含 Dockerfile / requirements / data card 的复现包；
-   - **L3 探索图（FlowGraph）**：每个节点 = (idea, implementation, evidence)；边携带 `derived_from` / `failed_due_to` / `improves_on` 等关系；
-   - **L4 证据层**：所有图、日志、artifact 都用内容哈希锚定，杜绝"宣称-数据"脱节。
+  - **L1 科学逻辑层**：决策树、超参数选择理由、反事实分析；
+  - **L2 可执行代码层**：含 Dockerfile / requirements / data card 的复现包；
+  - **L3 探索图（FlowGraph）**：每个节点 = (idea, implementation, evidence)；边携带 `derived_from` / `failed_due_to` / `improves_on` 等关系；
+  - **L4 证据层**：所有图、日志、artifact 都用内容哈希锚定，杜绝"宣称-数据"脱节。
 4. **Solution Database** 作为跨轮次共享存储，支持随机采样种子、按性能榜单或多样性策略调度。
 5. **对 Memory 系统的迁移价值**：把企业内部的 RFC、Design Doc、postmortem、Bug 复盘当作"探索图节点"沉淀，可让自研代理获得"为什么这么做"的过程记忆，而非仅"应该这么做"的结论记忆。
 
@@ -166,15 +168,17 @@ flowchart LR
     L5 --> AUD
 ```
 
+
+
 **模块级技术架构**：
 
 1. **协议级劫持**：以代理（stdio JSON-RPC 2.0 或 HTTP 反向代理）方式坐落在 Agent Host 与 Tools 之间，所有 `tools/call` 必经；策略全部在代理进程评估，**LLM 无法看见也无法绕过**。
 2. **五层防御**：
-   - **L1 Foundation Scan**：扫描 MCP / OpenClaw 插件、Python SDK 的供应链；输出风险评级；
-   - **L2 Input Sanitization**：基于规则 + 语义检测拦截 prompt injection / jailbreak / 隐蔽注入；
-   - **L3 Cognition Protection（与记忆最相关）**：记忆一致性评估、记忆投毒匹配（恶意语料相似度）、向量异常点检测、上下文漂移检测、检查点级回滚；
-   - **L4 Decision Alignment**：意图-动作一致性检查、多步轨迹审计、风险自适应权限分配；
-   - **L5 Execution Control**：高危系统调用实时拦截、行为意图分析、自动回滚。
+  - **L1 Foundation Scan**：扫描 MCP / OpenClaw 插件、Python SDK 的供应链；输出风险评级；
+  - **L2 Input Sanitization**：基于规则 + 语义检测拦截 prompt injection / jailbreak / 隐蔽注入；
+  - **L3 Cognition Protection（与记忆最相关）**：记忆一致性评估、记忆投毒匹配（恶意语料相似度）、向量异常点检测、上下文漂移检测、检查点级回滚；
+  - **L4 Decision Alignment**：意图-动作一致性检查、多步轨迹审计、风险自适应权限分配；
+  - **L5 Execution Control**：高危系统调用实时拦截、行为意图分析、自动回滚。
 3. **Capability Scoping**：将原本"per-tool ALLOW/BLOCK"细化为"per-argument constraint"——例如同一条 `email.send` 工具，不同领域只能发到白名单域名。
 4. **Session-Level Evasion Detection**：不仅看单次调用，还在滚动窗口检测多步攻击序列（5 种内置模式）。
 5. **审计 / 合规**：JSON Lines 输出 + RFC 5424 syslog，可直接接入 SIEM。
@@ -212,6 +216,8 @@ flowchart LR
 
     HNSW[(HNSW / IVF 索引)] -.加速.-> HAM
 ```
+
+
 
 **模块级技术架构**：
 
@@ -278,6 +284,8 @@ flowchart TB
     LPM -. 上下文 .-> AGENT
     EXP -. 程序性记忆 .-> AGENT
 ```
+
+
 
 ### 3.2 用户场景
 
@@ -438,33 +446,39 @@ sequenceDiagram
     AG->>EXP: 写回经验项
 ```
 
+
+
 ### 3.6 关键组件开源对照表
 
-| 流程节点 | 论文 / 开源项目 | 关键 API |
-| :--- | :--- | :--- |
-| TRIAGE / DECAY / AUDIT | Memory as Metabolism + LightMem | `triage(stm) → tier`, `sleep_time_update()` |
-| L1 / L2 / 用户画像 | MemoryOS, EverMemOS | `MemCell.write`, `MemScene.consolidate` |
-| 二进制索引 | IKE | `IKE.encode(emb)`, `BinaryIndex.hamming_topk` |
-| 经验记忆 / 双结果库 | ReasoningBank, APEX-EM | `ExperienceMemory.ingest`, `PRGII.run` |
-| 探索图 / 失败回溯 | Ara / OR-Agent | `FlowGraph.add_node`, `derived_from` |
-| RPE 路由 | D-MEM | `CriticRouter.rpe(stim)` |
-| 运行时 RL 优化 | MemRL, Memory-R1 | `Q.update(memory, reward)` |
-| 安全防御 | AgentWard | `agentward.yaml`, `inspect()` |
+
+| 流程节点                   | 论文 / 开源项目                       | 关键 API                                        |
+| ---------------------- | ------------------------------- | --------------------------------------------- |
+| TRIAGE / DECAY / AUDIT | Memory as Metabolism + LightMem | `triage(stm) → tier`, `sleep_time_update()`   |
+| L1 / L2 / 用户画像         | MemoryOS, EverMemOS             | `MemCell.write`, `MemScene.consolidate`       |
+| 二进制索引                  | IKE                             | `IKE.encode(emb)`, `BinaryIndex.hamming_topk` |
+| 经验记忆 / 双结果库            | ReasoningBank, APEX-EM          | `ExperienceMemory.ingest`, `PRGII.run`        |
+| 探索图 / 失败回溯             | Ara / OR-Agent                  | `FlowGraph.add_node`, `derived_from`          |
+| RPE 路由                 | D-MEM                           | `CriticRouter.rpe(stim)`                      |
+| 运行时 RL 优化              | MemRL, Memory-R1                | `Q.update(memory, reward)`                    |
+| 安全防御                   | AgentWard                       | `agentward.yaml`, `inspect()`                 |
+
 
 ---
 
 ## 4. 核心框架实现方案对比
 
-| 框架/论文 | 核心架构 | 记忆抽取机制 | 存储结构 | 检索策略 | 更新/进化机制 |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **EverMemOS**（arXiv:2601.02163） | 生命周期管理 | LLM 叙事合成、原子事实提取、Foresight | MemCells / MemScenes | 场景引导、必要性/充分性原则 | 在线聚类、用户画像演化 |
-| **MemRL**（arXiv:2601.03192） | 强化学习驱动（非参数） | 环境反馈、两阶段去噪（语义 + Q 值） | 经验回放缓冲区 | 语义匹配 + 结构签名 | 运行时蒙特卡洛 Q 值更新 |
-| **D-MEM**（arXiv:2603.14597） | 生物启发门控 | 奖励预测误差（RPE）路由、Critic Router | 快速 O(1) 缓存 / 慢速 KG | 多巴胺信号触发重构 | 高 RPE 触发 O(N) 演化（弃用 O(N²)） |
-| **APEX-EM**（arXiv:2603.29093） | 非参数化在线学习 | PRGII（Plan-Retrieve-Generate-Iterate-Ingest）+ Task Verifier | 计划 DAG、错误分析库、双结果库 | 混合检索：语义 + 结构签名 + DAG 遍历 | 成功/失败经验的双向注入 |
-| **Ara / OR-Agent**（arXiv:2602.13769） | 代理原生协议 | Lead Agent / Experiment Agent 捕获 | 探索图 FlowGraph、四层工件包 | 基于逻辑路径与数据库采样的遍历 | 评估反馈驱动节点演化与重生 |
-| **AgentWard**（FIND-Lab, 2026） | 生命周期安全 OS | 五层信号采集 | 策略 YAML + 审计日志 | 协议级拦截（stdio/HTTP） | 异构纵深防御 + 实时回滚 |
-| **IKE**（arXiv:2601.09159） | 轻量级检索引擎 | Isolation Kernel 空间映射 | 二进制哈希索引（256/512/1024 bit） | 汉明距离 + HNSW | 无学习成本，动态插入 |
-| **Memory as Metabolism**（arXiv:2604.12034） | 治理规范层 | TRIAGE 分诊 | Raw Buffer / Active Wiki / Cold Memory（L0/L1/L2 类比） | CONTEXTUALIZE 深度匹配 | DECAY + CONSOLIDATE + AUDIT 多轮代谢 |
+
+| 框架/论文                                      | 核心架构        | 记忆抽取机制                                                      | 存储结构                                                | 检索策略                    | 更新/进化机制                          |
+| ------------------------------------------ | ----------- | ----------------------------------------------------------- | --------------------------------------------------- | ----------------------- | -------------------------------- |
+| **EverMemOS**（arXiv:2601.02163）            | 生命周期管理      | LLM 叙事合成、原子事实提取、Foresight                                   | MemCells / MemScenes                                | 场景引导、必要性/充分性原则          | 在线聚类、用户画像演化                      |
+| **MemRL**（arXiv:2601.03192）                | 强化学习驱动（非参数） | 环境反馈、两阶段去噪（语义 + Q 值）                                        | 经验回放缓冲区                                             | 语义匹配 + 结构签名             | 运行时蒙特卡洛 Q 值更新                    |
+| **D-MEM**（arXiv:2603.14597）                | 生物启发门控      | 奖励预测误差（RPE）路由、Critic Router                                 | 快速 O(1) 缓存 / 慢速 KG                                  | 多巴胺信号触发重构               | 高 RPE 触发 O(N) 演化（弃用 O(N²)）       |
+| **APEX-EM**（arXiv:2603.29093）              | 非参数化在线学习    | PRGII（Plan-Retrieve-Generate-Iterate-Ingest）+ Task Verifier | 计划 DAG、错误分析库、双结果库                                   | 混合检索：语义 + 结构签名 + DAG 遍历 | 成功/失败经验的双向注入                     |
+| **Ara / OR-Agent**（arXiv:2602.13769）       | 代理原生协议      | Lead Agent / Experiment Agent 捕获                            | 探索图 FlowGraph、四层工件包                                 | 基于逻辑路径与数据库采样的遍历         | 评估反馈驱动节点演化与重生                    |
+| **AgentWard**（FIND-Lab, 2026）              | 生命周期安全 OS   | 五层信号采集                                                      | 策略 YAML + 审计日志                                      | 协议级拦截（stdio/HTTP）       | 异构纵深防御 + 实时回滚                    |
+| **IKE**（arXiv:2601.09159）                  | 轻量级检索引擎     | Isolation Kernel 空间映射                                       | 二进制哈希索引（256/512/1024 bit）                           | 汉明距离 + HNSW             | 无学习成本，动态插入                       |
+| **Memory as Metabolism**（arXiv:2604.12034） | 治理规范层       | TRIAGE 分诊                                                   | Raw Buffer / Active Wiki / Cold Memory（L0/L1/L2 类比） | CONTEXTUALIZE 深度匹配      | DECAY + CONSOLIDATE + AUDIT 多轮代谢 |
+
 
 > 备注：本表选取 2026 年最具范式启发性的 8 个框架；前文调研中的 Mem0、A-MEM、Zep、MemoryOS、MIRIX、ReasoningBank、MemGen、LightMem、MemSearcher 等已被 2026 系统普遍引用为基线，限于篇幅不在主表展开。
 
@@ -538,7 +552,7 @@ MemRL、Memory-R1、MemSearcher、ReasoningBank、MemGen 共同表明：
 1. Miteski, S. *Memory as Metabolism: A Design for Companion Knowledge Systems*. arXiv:2604.12034, Apr 2026.
 2. *The Last Human-Written Paper: Agent-Native Research Artifacts (Ara)*. Apr 2026.
 3. Liu, et al. *OR-Agent: Bridging Evolutionary Search and Structured Research for Automated Algorithm Discovery*. arXiv:2602.13769, Feb 2026.
-4. FIND-Lab. *AgentWard: A Full-Stack Lifecycle Security Architecture for Autonomous AI Agents*. 2026. https://github.com/FIND-Lab/AgentWard
+4. FIND-Lab. *AgentWard: A Full-Stack Lifecycle Security Architecture for Autonomous AI Agents*. 2026. [https://github.com/FIND-Lab/AgentWard](https://github.com/FIND-Lab/AgentWard)
 5. Zhang, Z., Xu, Y., Ting, K. M., Nguyen, C.-T. *LLMs Meet Isolation Kernel: Lightweight, Learning-free Binary Embeddings for Fast Retrieval*. arXiv:2601.09159, Jan 2026.
 6. *EverMemOS: A Self-Organizing Memory Operating System for Structured Long-Horizon Reasoning*. arXiv:2601.02163, Jan 2026.
 7. Zhang, S., Wang, J., et al. *MemRL: Self-Evolving Agents via Runtime Reinforcement Learning on Episodic Memory*. arXiv:2601.03192, Jan 2026.
@@ -561,3 +575,4 @@ MemRL、Memory-R1、MemSearcher、ReasoningBank、MemGen 共同表明：
 ---
 
 > **写作说明**：本报告为面向架构师、研究人员与企业 AI Infra 团队的实施级调研版本。所有 mermaid 架构图与代码片段均可直接作为内部 RFC 起点。建议结合第七章「基于知识图谱的 RAG」一同阅读，以理解 Memory 与 RAG 在工程落地中的衔接关系。
+
