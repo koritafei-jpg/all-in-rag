@@ -653,7 +653,402 @@ AI Memory 越强，隐私风险越高。未来系统必须内建：
 
 关键挑战是不同记忆层之间的一致性、迁移、删除和优先级仲裁。
 
-## 8. 面向工程落地的参考架构
+## 8. 论文架构图
+
+本节使用 Mermaid 绘制各代表论文/系统的核心架构图。图中强调的是论文提出的关键数据流和模块职责，而非完整工程实现细节。
+
+### 8.1 Reflexion 架构图
+
+```mermaid
+flowchart LR
+    A[任务输入] --> B[语言 Agent 执行]
+    B --> C[环境反馈/测试结果]
+    C --> D[反思生成器]
+    D --> E[语言化反思]
+    E --> F[Episodic Memory Buffer]
+    F --> G[下一轮 Prompt]
+    G --> B
+```
+
+**关键链路**：失败反馈被转化为可读的策略性经验，再作为下一轮推理上下文使用。
+
+### 8.2 Generative Agents 架构图
+
+```mermaid
+flowchart TD
+    A[环境感知] --> B[Observation]
+    B --> C[Memory Stream]
+    C --> D[按 Recency/Relevance/Importance 检索]
+    D --> E[Reflection 生成高层洞察]
+    D --> F[Planning 生成长期和短期计划]
+    E --> C
+    F --> G[Action/Dialogue]
+    G --> A
+```
+
+**关键链路**：观察写入经验流，反思把低层事件抽象成高层记忆，规划模块基于检索结果维持长期行为一致性。
+
+### 8.3 MemoryBank 架构图
+
+```mermaid
+flowchart TD
+    A[长期对话] --> B[事件摘要/用户画像抽取]
+    B --> C[Memory Bank]
+    C --> D[向量索引]
+    C --> E[记忆强度更新]
+    E --> F[艾宾浩斯遗忘/强化]
+    D --> G[相关记忆召回]
+    F --> G
+    G --> H[个性化响应生成]
+```
+
+**关键链路**：长期对话被组织成事件和画像，记忆根据时间与重要性衰减，并在再次使用时强化。
+
+### 8.4 LongMem 架构图
+
+```mermaid
+flowchart LR
+    A[历史上下文片段] --> B[冻结 Backbone LLM]
+    B --> C[KV Cache Memory Bank]
+    D[当前输入] --> E[SideNet 查询生成]
+    C --> F[相关 KV 检索]
+    E --> F
+    F --> G[Joint Attention 融合]
+    D --> G
+    G --> H[语言模型输出]
+```
+
+**关键链路**：Backbone 负责编码历史，SideNet 负责检索和读取历史 KV，以注意力方式融合长期上下文。
+
+### 8.5 MemGPT 架构图
+
+```mermaid
+flowchart TD
+    A[用户输入] --> B[Main Context]
+    B --> B1[System Instructions]
+    B --> B2[Working Context]
+    B --> B3[FIFO Queue]
+    B --> C[LLM Processor]
+    C --> D{函数调用}
+    D -->|store/update| E[External Context]
+    D -->|search/retrieve| E
+    E --> E1[Archival Storage]
+    E --> E2[Recall Storage]
+    E --> B
+    B3 --> F[Queue Manager]
+    F -->|上下文溢出| D
+```
+
+**关键链路**：LLM 像操作系统进程一样管理主上下文和外部上下文，通过函数调用完成分页、检索和更新。
+
+### 8.6 LoCoMo 评测架构图
+
+```mermaid
+flowchart TD
+    A[Persona] --> C[长对话生成]
+    B[Temporal Event Graph] --> C
+    C --> D[人工校验/编辑]
+    D --> E[LoCoMo 数据集]
+    E --> F[QA]
+    E --> G[Event Summarization]
+    E --> H[Multimodal Dialogue Generation]
+    F --> I[长期记忆能力评测]
+    G --> I
+    H --> I
+```
+
+**关键链路**：通过人格和时间事件图生成长对话，再用多任务评测模型的跨会话、时间和因果记忆能力。
+
+### 8.7 MEMORYLLM 架构图
+
+```mermaid
+flowchart LR
+    A[待注入文本知识] --> B[Self-Update Mechanism]
+    B --> C[Latent Memory Pool]
+    C --> D[Transformer Backbone]
+    E[用户查询] --> D
+    D --> F[读取潜空间记忆]
+    F --> G[生成回答]
+    B --> H[旧知识缓慢淘汰/保留]
+    H --> C
+```
+
+**关键链路**：模型在 Transformer 潜空间中维护可更新记忆池，使新知识不只存在于外部检索库中。
+
+### 8.8 HippoRAG 架构图
+
+```mermaid
+flowchart TD
+    A[外部文档] --> B[LLM/OpenIE 抽取]
+    B --> C[实体/关系/事实三元组]
+    C --> D[知识图谱]
+    E[用户问题] --> F[查询实体识别]
+    F --> G[Personalized PageRank]
+    D --> G
+    G --> H[相关实体/事实/段落]
+    H --> I[LLM 多跳回答]
+```
+
+**关键链路**：图谱承担长期知识整合，PPR 在图上扩散完成单步多跳检索。
+
+### 8.9 MemoRAG 架构图
+
+```mermaid
+flowchart TD
+    A[长上下文/数据库] --> B[轻量长程模型]
+    B --> C[Global Memory]
+    D[任务问题] --> E[Draft Answer/Clues]
+    C --> E
+    E --> F[检索器定位证据]
+    A --> F
+    F --> G[高表达 LLM]
+    D --> G
+    G --> H[最终答案]
+    H --> I[RLGF 反馈优化线索能力]
+    I --> B
+```
+
+**关键链路**：先用轻量模型形成全局记忆和检索线索，再由强模型基于证据生成最终答案。
+
+### 8.10 LongMemEval 评测架构图
+
+```mermaid
+flowchart TD
+    A[可扩展聊天历史] --> B[Indexing]
+    B --> C[Retrieval]
+    C --> D[Reading/Answering]
+    E[500 个精标问题] --> D
+    D --> F[信息抽取]
+    D --> G[多会话推理]
+    D --> H[时间推理]
+    D --> I[知识更新]
+    D --> J[拒答]
+    F --> K[长期记忆评测结果]
+    G --> K
+    H --> K
+    I --> K
+    J --> K
+```
+
+**关键链路**：把长期记忆系统拆为索引、检索、阅读三阶段，并用五类能力定位系统短板。
+
+### 8.11 Zep 架构图
+
+```mermaid
+flowchart TD
+    A[会话数据] --> C[Graphiti]
+    B[结构化业务数据] --> C
+    C --> D[Episodic Subgraph]
+    C --> E[Semantic Subgraph]
+    C --> F[Bi-temporal Edges]
+    C --> G[Community Summaries]
+    H[查询] --> I[Hybrid Search: Vector + BM25 + Graph]
+    D --> I
+    E --> I
+    F --> I
+    G --> I
+    I --> J[多阶段重排]
+    J --> K[Context Constructor]
+    K --> L[Agent 响应]
+```
+
+**关键链路**：动态时序知识图谱融合对话与业务事实，检索时结合向量、关键词、图遍历和时间约束。
+
+### 8.12 A-MEM 架构图
+
+```mermaid
+flowchart TD
+    A[新记忆] --> B[原子笔记生成]
+    B --> B1[上下文描述]
+    B --> B2[关键词]
+    B --> B3[标签]
+    B --> B4[Embedding]
+    B1 --> C[历史记忆检索]
+    B2 --> C
+    B3 --> C
+    B4 --> C
+    C --> D[Agentic Linking]
+    D --> E[记忆网络]
+    D --> F[历史记忆演化/属性更新]
+    F --> E
+```
+
+**关键链路**：新记忆不是简单追加，而是由 Agent 生成结构化笔记、建立链接并触发旧记忆演化。
+
+### 8.13 Mem0 架构图
+
+```mermaid
+flowchart TD
+    A[用户/Agent 对话] --> B[Salient Memory Extraction]
+    B --> C[去重/合并/更新]
+    C --> D[Memory Store]
+    D --> E[Semantic Search]
+    D --> F[Keyword/Entity Search]
+    D --> G[Graph Memory Mem0g]
+    H[当前问题] --> I[多信号检索融合]
+    E --> I
+    F --> I
+    G --> I
+    I --> J[注入上下文]
+    J --> K[LLM 生成响应]
+```
+
+**关键链路**：通过抽取稳定事实和多信号检索降低全上下文成本，并用图记忆增强关系推理。
+
+### 8.14 MIRIX 架构图
+
+```mermaid
+flowchart TD
+    A[文本/语音/图片/屏幕事件] --> B[Meta Memory Manager]
+    B --> C[Core Memory Agent]
+    B --> D[Episodic Memory Agent]
+    B --> E[Semantic Memory Agent]
+    B --> F[Procedural Memory Agent]
+    B --> G[Resource Memory Agent]
+    B --> H[Knowledge Vault Agent]
+    C --> I[统一检索与响应]
+    D --> I
+    E --> I
+    F --> I
+    G --> I
+    H --> I
+    I --> J[多模态个人助手]
+```
+
+**关键链路**：不同记忆类型由专职 Agent 管理，Meta Memory Manager 负责路由和协调，适合高复杂度多模态个人助手。
+
+## 9. 具体示例：AI Memory 个人科研助理
+
+为说明上述架构如何落地，下面给出一个“AI Memory 个人科研助理”的具体示例。该助理长期辅助研究者阅读论文、记录偏好、规划实验和撰写综述。
+
+### 9.1 场景输入
+
+第 1 次会话：
+
+```text
+用户：我在做 AI Memory 方向调研，重点关注 LLM Agent 的长期记忆。
+助理：好的，我会优先关注长期会话、图谱记忆、Agentic Memory 和评测基准。
+用户：我不喜欢只列论文摘要，希望每篇都分析架构、实验成功点和局限。
+```
+
+第 2 次会话：
+
+```text
+用户：请帮我加入 Mem0、Zep、A-MEM、MIRIX 的最新进展。
+助理：已记录，这些论文分别代表生产记忆层、时序知识图谱、动态笔记网络和多智能体多模态记忆。
+用户：最终报告必须是 md 文件，并且要有架构图和一个具体例子。
+```
+
+第 3 次会话：
+
+```text
+用户：继续完善上次的 AI Memory 调研报告。
+```
+
+### 9.2 写入阶段
+
+系统不应把全部原始对话都平铺写入长期记忆，而应抽取结构化记忆：
+
+| 记忆类型 | 写入内容 | 来源 |
+| :--- | :--- | :--- |
+| 用户偏好 | 用户希望报告不只列摘要，而要分析架构、成功点和局限 | 第 1 次会话 |
+| 任务目标 | 生成 AI Memory 最新论文调研报告 | 第 1 次会话 |
+| 论文范围 | Mem0、Zep、A-MEM、MIRIX 是必须覆盖的最新进展 | 第 2 次会话 |
+| 输出约束 | 输出为 Markdown 文件，包含架构图和具体示例 | 第 2 次会话 |
+| 程序记忆 | 报告结构应包含摘要、关键词、方法、逐篇分析、横向比较、未来方向、参考文献 | 从多次任务中总结 |
+
+写入 pipeline 可表示为：
+
+```mermaid
+flowchart LR
+    A[原始会话] --> B[敏感信息过滤]
+    B --> C[事实/偏好/约束抽取]
+    C --> D[重要性评分]
+    D --> E{是否值得长期保存}
+    E -- 是 --> F[写入语义记忆/任务记忆/程序记忆]
+    E -- 否 --> G[仅保留短期上下文或丢弃]
+    F --> H[记录来源会话和时间]
+```
+
+### 9.3 管理阶段
+
+当用户第 2 次提出“必须有架构图和具体例子”时，系统需要更新旧任务记忆，而不是新增一条互相割裂的需求：
+
+```text
+旧任务记忆：
+生成 AI Memory 最新论文调研报告。
+
+更新后任务记忆：
+生成 AI Memory 最新论文调研报告；报告需使用论文格式，逐篇分析技术架构、成功经验和未来方向，并以 Markdown 文件输出；每篇论文需要配架构图，报告需要包含一个具体示例。
+```
+
+如果系统采用 Zep 式时序图谱，还可以记录约束的时间和来源：
+
+```text
+(用户)-[要求]->(Markdown 输出) valid_at: 第 2 次会话
+(用户)-[要求]->(每篇论文架构图) valid_at: 第 2 次会话
+(用户)-[偏好]->(深入架构分析) valid_at: 第 1 次会话
+```
+
+### 9.4 检索阶段
+
+第 3 次用户只说“继续完善上次的 AI Memory 调研报告”，显式查询很短，但记忆系统应召回：
+
+1. 任务主题：AI Memory 最新论文调研；
+2. 输出格式：Markdown 文件；
+3. 内容约束：论文格式、逐篇架构分析、成功总结、未来方向；
+4. 新增要求：每篇架构图、具体示例；
+5. 用户偏好：避免只有摘要，要深入分析。
+
+多路检索可表示为：
+
+```mermaid
+flowchart TD
+    Q[继续完善上次的报告] --> QR[查询改写]
+    QR --> V[向量检索: 相似任务]
+    QR --> K[关键词检索: AI Memory/报告/架构图]
+    QR --> E[实体检索: Mem0/Zep/A-MEM/MIRIX]
+    QR --> T[时间过滤: 最近任务约束]
+    V --> R[融合重排]
+    K --> R
+    E --> R
+    T --> R
+    R --> C[构造上下文: 任务目标 + 用户偏好 + 输出约束]
+```
+
+### 9.5 生成阶段
+
+最终注入给 LLM 的上下文不应是全部历史对话，而应是压缩后的可执行状态：
+
+```text
+你正在继续一个 AI Memory 调研报告任务。
+用户要求：
+1. 使用论文格式；
+2. 输出 Markdown 文件；
+3. 调研最新 AI Memory 论文；
+4. 每篇论文需分析技术架构、成功经验和局限；
+5. 最后总结未来发展方向；
+6. 每篇论文需绘制架构图；
+7. 报告需包含一个具体示例。
+
+用户偏好：
+- 不要只列摘要；
+- 需要架构专家视角；
+- 关注生产落地、评测和未来方向。
+```
+
+### 9.6 更新阶段
+
+报告完成后，系统可以写入新的程序记忆：
+
+```text
+当用户请求“AI Memory 调研报告”时，优先使用以下结构：
+摘要 -> 关键词 -> 引言 -> 调研方法 -> 分类框架 -> 逐篇论文架构分析 -> 架构图 -> 具体示例 -> 横向对比 -> 成功经验 -> 未来方向 -> 参考文献。
+```
+
+这个例子说明，一个可用的 AI Memory 系统不是简单保存聊天记录，而是把会话转化为可检索、可更新、可审计、可执行的长期任务状态。
+
+## 10. 面向工程落地的参考架构
 
 结合上述论文，一个生产级 AI Memory 系统可采用如下架构：
 
@@ -695,7 +1090,7 @@ Agent Runtime
 
 该架构吸收了 Mem0 的生产记忆层、Zep 的时序图谱、MemGPT 的分层上下文、A-MEM 的动态链接、MIRIX 的多类型记忆和 Reflexion 的经验反馈机制。
 
-## 9. 结论
+## 11. 结论
 
 AI Memory 正从“给 LLM 加一个向量库”演进为 Agent 系统的核心基础设施。2023 年的 Generative Agents、Reflexion、MemoryBank 和 MemGPT 建立了经验流、反思、外部记忆和虚拟上下文的基础范式；2024 年的 MEMORYLLM、HippoRAG、LoCoMo 推动了参数记忆、图谱记忆和长期评测；2025 年后的 MemoRAG、LongMemEval、Zep、A-MEM、Mem0、MIRIX 则把重点推进到生产可用、时序一致、动态组织、多模态和多 Agent 协作。
 
